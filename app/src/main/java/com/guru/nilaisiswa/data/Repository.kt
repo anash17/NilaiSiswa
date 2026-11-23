@@ -6,47 +6,83 @@ import kotlinx.coroutines.flow.first
 class Repository(private val db: AppDatabase) {
 
     fun semuaKelas() = db.kelasDao().semua()
-    suspend fun tambahKelas(nama: String) = db.kelasDao().insert(Kelas(nama = nama.trim()))
-    suspend fun hapusKelas(k: Kelas) = db.kelasDao().delete(k)
+
+    suspend fun tambahKelas(nama: String) {
+        db.kelasDao().insert(Kelas(nama = nama.trim()))
+    }
+
+    suspend fun hapusKelas(k: Kelas) {
+        db.kelasDao().delete(k)
+    }
 
     fun siswaPerKelas(kelasId: Long) = db.siswaDao().perKelas(kelasId)
-    suspend fun tambahSiswa(kelasId: Long, nis: String, nama: String) =
-        db.siswaDao().insertAll(listOf(Siswa(kelasId, nis.trim(), nama.trim())))
+
+    suspend fun tambahSiswa(kelasId: Long, nis: String, nama: String) {
+        val siswa = Siswa(
+            kelasId = kelasId,
+            nis = nis.trim(),
+            nama = nama.trim()
+        )
+        db.siswaDao().insertAll(listOf(siswa))
+    }
 
     fun semuaKategori() = db.kategoriDao().semua()
-    suspend fun tambahKategori(nama: String, bobot: Float) =
+
+    suspend fun tambahKategori(nama: String, bobot: Float) {
         db.kategoriDao().insert(Kategori(nama = nama.trim(), bobot = bobot))
-    suspend fun hapusKategori(k: Kategori) = db.kategoriDao().delete(k)
+    }
+
+    suspend fun hapusKategori(k: Kategori) {
+        db.kategoriDao().delete(k)
+    }
 
     fun semuaTp() = db.tpDao().semua()
-    suspend fun tambahTp(kode: String, deskripsi: String) =
+
+    suspend fun tambahTp(kode: String, deskripsi: String) {
         db.tpDao().insert(TujuanPembelajaran(kode = kode.trim(), deskripsi = deskripsi.trim()))
-    suspend fun hapusTp(t: TujuanPembelajaran) = db.tpDao().delete(t)
+    }
+
+    suspend fun hapusTp(t: TujuanPembelajaran) {
+        db.tpDao().delete(t)
+    }
 
     fun barisPerKelas(kelasId: Long) = db.nilaiDao().barisPerKelas(kelasId)
 
-    suspend fun simpanNilai(siswaId: Long, kategoriId: Long, tpId: Long?, nilai: Float) = db.withTransaction {
-        db.nilaiDao().hapus(siswaId, kategoriId, tpId)
-        db.nilaiDao().upsertAll(listOf(
-            Nilai(siswaId = siswaId, kategoriId = kategoriId, tpId = tpId, nilai = nilai)))
+    suspend fun simpanNilai(siswaId: Long, kategoriId: Long, tpId: Long?, nilai: Float) {
+        db.withTransaction {
+            db.nilaiDao().hapus(siswaId, kategoriId, tpId)
+            val baru = Nilai(
+                siswaId = siswaId,
+                kategoriId = kategoriId,
+                tpId = tpId,
+                nilai = nilai
+            )
+            db.nilaiDao().upsertAll(listOf(baru))
+        }
     }
 
-    suspend fun hapusNilai(siswaId: Long, kategoriId: Long, tpId: Long?) =
+    suspend fun hapusNilai(siswaId: Long, kategoriId: Long, tpId: Long?) {
         db.nilaiDao().hapus(siswaId, kategoriId, tpId)
+    }
 
-    /** Impor atomik dari baris CSV: NIS,Nama,Kategori,TP,Nilai. */
+    /** Impor atomik dari baris CSV berformat: NIS,Nama,Kategori,TP,Nilai. */
     suspend fun impor(kelasId: Long, baris: List<List<String>>): Int = db.withTransaction {
         var count = 0
         val siswaCache = mutableMapOf<String, Long>()
         for (r in baris) {
             if (r.size < 5) continue
-            val (nis, nama, kat, tp, nilaiStr) = r
+            val nis = r[0]
+            val nama = r[1]
+            val kat = r[2]
+            val tp = r[3]
+            val nilaiStr = r[4]
             val nilai = nilaiStr.toFloatOrNull() ?: continue
             if (nilai !in 0f..100f) continue
 
             val key = nis.trim()
             val siswaId = siswaCache.getOrPut(key) {
-                db.siswaDao().insertAll(listOf(Siswa(kelasId, key, nama.trim()))).first()
+                val siswa = Siswa(kelasId = kelasId, nis = key, nama = nama.trim())
+                db.siswaDao().insertAll(listOf(siswa)).first()
             }
 
             val kategoriId = db.kategoriDao().byNama(kat.trim())?.id
@@ -56,8 +92,13 @@ class Repository(private val db: AppDatabase) {
                     ?: db.tpDao().insert(TujuanPembelajaran(kode = tp.trim(), deskripsi = ""))
 
             db.nilaiDao().hapus(siswaId, kategoriId, tpId)
-            db.nilaiDao().upsertAll(listOf(
-                Nilai(siswaId = siswaId, kategoriId = kategoriId, tpId = tpId, nilai = nilai)))
+            val baru = Nilai(
+                siswaId = siswaId,
+                kategoriId = kategoriId,
+                tpId = tpId,
+                nilai = nilai
+            )
+            db.nilaiDao().upsertAll(listOf(baru))
             count++
         }
         count
