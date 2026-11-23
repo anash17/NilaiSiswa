@@ -1,7 +1,9 @@
 package com.guru.nilaisiswa.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -9,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -31,7 +34,10 @@ fun KelasScreen(vm: AppViewModel, onMaster: () -> Unit, onKelasClick: (Long) -> 
         }
     ) { pad ->
         if (kelas.isEmpty()) {
-            Box(Modifier.padding(pad).fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.padding(pad).fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Belum ada kelas. Tekan tombol + untuk menambah.")
             }
         } else {
@@ -61,11 +67,17 @@ fun InputDialog(title: String, initial: String = "",
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { OutlinedTextField(value = text, onValueChange = { text = it },
-            label = { Text("Nama") }) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Nama") }
+            )
+        },
         confirmButton = {
             TextButton(onClick = { if (text.isNotBlank()) onConfirm(text.trim()) }) {
-                Text("Simpan") }
+                Text("Simpan")
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
     )
