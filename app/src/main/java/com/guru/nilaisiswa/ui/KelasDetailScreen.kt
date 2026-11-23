@@ -1,7 +1,16 @@
 package com.guru.nilaisiswa.ui
 
 import android.content.ContentResolver
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -33,8 +42,6 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
     var tpId by remember { mutableStateOf<Long?>(null) }
     var showAddSiswa by remember { mutableStateOf(false) }
     var showRekap by remember { mutableStateOf(false) }
-    var katExpanded by remember { mutableStateOf(false) }
-    var tpExpanded by remember { mutableStateOf(false) }
 
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(pesan) {
@@ -51,11 +58,13 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
                 title = { Text("Input Nilai") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali") }
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali")
+                    }
                 },
                 actions = {
                     IconButton(onClick = { showRekap = !showRekap }) {
-                        Icon(Icons.Default.Assessment, "Rekap") }
+                        Icon(Icons.Default.Assessment, "Rekap")
+                    }
                     IconButton(onClick = {
                         launchCreate("nilai_${System.currentTimeMillis()}.csv") { uri ->
                             vm.eksporCsv(uri, resolver)
@@ -69,42 +78,30 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddSiswa = true }) {
-                Icon(Icons.Default.Add, "Tambah siswa") }
+                Icon(Icons.Default.Add, "Tambah siswa")
+            }
         }
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
-            Row(Modifier.fillMaxWidth().padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ExposedDropdownMenuBox(katExpanded, { katExpanded = it }, Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = katTerpilih?.nama ?: "", readOnly = true,
-                        label = { Text("Kategori") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(katExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+            Row(Modifier.fillMaxWidth().padding(8.dp)) {
+                Box(Modifier.weight(1f)) {
+                    DropdownSelector(
+                        label = "Kategori",
+                        value = katTerpilih?.nama ?: "",
+                        options = kategori.map { it.nama },
+                        onPick = { idx -> katId = kategori[idx].id }
                     )
-                    ExposedDropdownMenu(katExpanded, { katExpanded = false }) {
-                        kategori.forEach { k ->
-                            DropdownMenuItem(text = { Text(k.nama) },
-                                onClick = { katId = k.id; katExpanded = false })
-                        }
-                    }
                 }
-                ExposedDropdownMenuBox(tpExpanded, { tpExpanded = it }, Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = tpTerpilih?.kode ?: "", readOnly = true,
-                        label = { Text("TP") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(tpExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f)) {
+                    val opsi = listOf("(tanpa TP)") + tp.map { it.kode }
+                    DropdownSelector(
+                        label = "TP",
+                        value = tpTerpilih?.kode ?: "",
+                        options = opsi,
+                        onPick = { idx -> tpId = if (idx == 0) null else tp[idx - 1].id }
                     )
-                    ExposedDropdownMenu(tpExpanded, { tpExpanded = false }) {
-                        DropdownMenuItem(text = { Text("(tanpa TP)") },
-                            onClick = { tpId = null; tpExpanded = false })
-                        tp.forEach { t ->
-                            DropdownMenuItem(text = { Text(t.kode) },
-                                onClick = { tpId = t.id; tpExpanded = false })
-                        }
-                    }
                 }
             }
 
@@ -119,7 +116,9 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
                 items(siswa, key = { it.id }) { s ->
                     val existing = baris.firstOrNull {
                         it.siswaId == s.id && it.kategori == (katTerpilih?.nama ?: "")
-                    }?.nilai?.let { if (it == it.toLong().toFloat()) it.toLong().toString() else it.toString() } ?: ""
+                    }?.nilai?.let {
+                        if (it == it.toLong().toFloat()) it.toLong().toString() else it.toString()
+                    } ?: ""
                     var text by remember(s.id, katId, tpId) { mutableStateOf(existing) }
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -138,8 +137,9 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
                         )
                         TextButton(onClick = {
                             val n = text.toFloatOrNull()
-                            if (n != null && n in 0f..100f && katId != null) {
-                                vm.simpanNilai(s.id, katId!!, tpId, n)
+                            val k = katId
+                            if (n != null && n in 0f..100f && k != null) {
+                                vm.simpanNilai(s.id, k, tpId, n)
                             }
                         }) { Text("Simpan") }
                     }
@@ -165,6 +165,34 @@ fun KelasDetailScreen(vm: AppViewModel, resolver: ContentResolver,
     if (showAddSiswa) DualInputDialog("Tambah Siswa", "NIS", "Nama",
         onDismiss = { showAddSiswa = false },
         onConfirm = { nis, nama -> vm.tambahSiswa(nis, nama); showAddSiswa = false })
+}
+
+/** Dropdown sederhana dan stabil: teks baca-saja + menu. */
+@Composable
+fun DropdownSelector(label: String, value: String,
+                     options: List<String>, onPick: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        // lapisan transparan agar seluruh area bisa diklik
+        Box(
+            Modifier.matchParentSize().clickable { expanded = true }
+        )
+        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            if (options.isEmpty()) {
+                DropdownMenuItem(text = { Text("(kosong)") }, onClick = { expanded = false })
+            }
+            options.forEachIndexed { i, o ->
+                DropdownMenuItem(text = { Text(o) }, onClick = { onPick(i); expanded = false })
+            }
+        }
+    }
 }
 
 @Composable
